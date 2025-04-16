@@ -36,18 +36,25 @@ const SPO2Canvas: React.FC<SPO2CanvasProps> = ({ hr, bufferRef }) => {
     const gain = size.height * 0.4;
     const stepMs = 20;
 
-    let animationId: number;
-    let lastDrawTime = performance.now();
-
     const DELAY = 35; // ← 適宜調整（SamplingRate = 200なら150ms程度）
 
+    let animationId: number;
+    let lastDrawTime: number | null = null; // ← nullで初期化！
+
     const draw = (time: number) => {
+      if (lastDrawTime === null) {
+        lastDrawTime = time; // ← 初回だけ強制代入！
+      }
+
       const delta = time - lastDrawTime;
       if (delta >= stepMs) {
         lastDrawTime = time;
 
+        // 🎨 通常の描画処理
         const wave = bufferRef.current?.getArray() ?? [];
-        const latestwave = wave.slice(-size.width - DELAY, -DELAY);
+        const start = Math.max(0, wave.length - size.width - DELAY);
+        const end = wave.length - DELAY;
+        const latestwave = wave.slice(start, end);
 
         ctx.clearRect(0, 0, size.width, size.height);
         ctx.beginPath();
@@ -55,14 +62,24 @@ const SPO2Canvas: React.FC<SPO2CanvasProps> = ({ hr, bufferRef }) => {
         ctx.lineWidth = 1;
         ctx.lineJoin = 'round';
 
+        let started = false;
         for (let x = 0; x < latestwave.length; x++) {
-          const y = baseline - latestwave[x] * gain;
-          x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+          const val = latestwave[x];
+          if (typeof val !== 'number' || !isFinite(val)) continue;
+          const y = baseline - val * gain;
+          if (!started) {
+            ctx.moveTo(x, y);
+            started = true;
+          } else {
+            ctx.lineTo(x, y);
+          }
         }
         ctx.stroke();
       }
+
       animationId = requestAnimationFrame(draw);
     };
+
 
     animationId = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(animationId);

@@ -25,7 +25,7 @@ export function generatePWave(simOptions: SimOptions): number[] {
     const right = gaussian(rightAmp, t, rightCenter, stdDev/2);
     const left = gaussian(leftAmp, t, leftCenter, stdDev/2);
     const amp = waveform?.mgnfy ?? 1;
-    wave.push((right + left) * amp *0.5);
+    wave.push((right + left) * amp * 0.5);
   }
   return wave;
 }

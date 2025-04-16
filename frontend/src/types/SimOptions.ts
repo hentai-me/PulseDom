@@ -41,6 +41,7 @@ export type SimOptions = {
       Swidth?: number;
       Theight?: number;
       Twidth?: number;
+      STheight?: number; // STの高さ
       QRSwidth?: number; // QRSTの全体幅
       baseline?: number; // 基線の高さ};
   };

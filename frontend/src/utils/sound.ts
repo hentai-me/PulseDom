@@ -14,3 +14,15 @@ export const playBeep = (): void => {
     oscillator.start();
     oscillator.stop(ctx.currentTime + 0.05); // 50msだけ再生
   };
+
+  export function calculateFrequency(spo2: number, mode: 'off' | 'on'): number {
+    if (mode === 'off') {
+      return 1108; // SPO2音OFF時の固定音
+    } else if (spo2 >= 86) {
+      // 正常領域：半音刻み
+      return 440 * Math.pow(2, (spo2 - 91 + 5.5) / 12);
+    } else {
+      // 異常領域：より細かい音程
+      return 440 * Math.pow(2, (spo2 - 91 + 5.5) / 24);
+    }
+  }

@@ -1,23 +1,19 @@
+// src/AppFn.tsx
 import React, { useEffect, useRef, useState } from 'react';
-import ECGCanvas from './components/ECGCanvas';
+import ECGCanvas_Oscilloscope from './components/ECGCanvas_Oscilloscope';
 import SPO2Canvas from './components/SPO2Canvas';
-import { WaveBuffer } from './engine/WaveBuffer';
-import { RhythmEngine } from './engine/RhythmEngine';
+import { RhythmEngine } from './engine/RhythmEngine_Fn';
+import { GraphEngine } from './engine/GraphEngine';
+import { unlockAudio } from './audio/unlockAudio';
 import VitalDisplay from './components/VitalDisplay';
 import { ECG_CONFIG } from './constants';
-import { unlockAudio } from './audio/unlockAudio';
-import { GraphEngine } from './engine/GraphEngine';
-
+import { createDefaultSimOptions } from './types/createDefaultSimOptions';
 import {
   HR_PARAM,
   SPO2_PARAM,
   NIBP_SYS_PARAM,
   NIBP_DIA_PARAM,
 } from './models/VitalParameter';
-import { createDefaultSimOptions } from './types/createDefaultSimOptions';
-
-const BUFFER_NAMES = ['ecg', 'spo2'] as const;
-type BufferKey = typeof BUFFER_NAMES[number];
 
 function App() {
   const [hr, setHr] = useState(60);
@@ -26,57 +22,46 @@ function App() {
   const [diaBp, setDiaBp] = useState(70);
   const [audioCtx, setAudioCtx] = useState<AudioContext | null>(null);
   const [isBeepOn, setIsBeepOn] = useState(false);
+  const [engine, setEngine] = useState<RhythmEngine | null>(null);
 
-  const waveBuffersRef = useRef<Record<BufferKey, WaveBuffer>>({
-    ecg: new WaveBuffer({ size: 2000 }),
-    spo2: new WaveBuffer({ size: 2000 }),
-  });
-
-  const engineRef = useRef<RhythmEngine | null>(null);
   const simOptionsRef = useRef(createDefaultSimOptions());
-  const { stepMs } = ECG_CONFIG;
+  const graphRef = useRef(GraphEngine.createDefaultEngine());
+  const isBeepOnRef = useRef(false);
+  const latestValueRef = useRef<{ ecg?: number }>({ ecg: 0 });
 
   const sysBpRef = useRef(sysBp);
   const diaBpRef = useRef(diaBp);
 
-  const isBeepOnRef = useRef(false);
-  
   const handleBeepToggle = () => {
     const next = !isBeepOn;
-  
-    // 🔓 unlock audio if needed
     if (next && !audioCtx) {
       const ctx = unlockAudio();
       setAudioCtx(ctx);
-      engineRef.current?.setAudioContext(ctx);
+      engine?.setAudioContext(ctx);
     }
-  
-    // ✅ 先にrefを更新しておく（遅延防止！）
     isBeepOnRef.current = next;
-  
-    // 💡 最後にstate更新（UI用）
     setIsBeepOn(next);
   };
 
-  const graphRef = useRef(GraphEngine.createDefaultEngine());
-
   useEffect(() => {
     const engine = new RhythmEngine({
-      buffers: waveBuffersRef.current,
       simOptions: simOptionsRef.current,
-      graph: graphRef.current, // ← これ追加！
+      graph: graphRef.current,
+      audioCtx,
       isBeepOnRef,
+      latestValueRef,
     });
+    setEngine(engine);
   
-    engineRef.current = engine;
+    const STEP_MS = ECG_CONFIG.stepMs;
+    
+    const timerId = setInterval(() => {
+      const now = performance.now() / 1000;
+      engine.step(now);
+    }, STEP_MS);
   
-    const interval = setInterval(() => {
-      engine.step(stepMs);
-    }, stepMs);
-  
-    return () => clearInterval(interval);
+    return () => clearInterval(timerId); // 🔚 Cleanup
   }, []);
-  
 
   useEffect(() => {
     sysBpRef.current = sysBp;
@@ -109,22 +94,26 @@ function App() {
     setDiaBp(next);
   };
 
+  
   return (
     <div className="min-h-screen bg-gray-900 text-white p-4">
       <div className="max-w-screen-xl mx-auto grid grid-cols-2 gap-3 lg:grid-cols-6">
         <div className="col-span-2 md:col-span-4 lg:col-span-6 text-left text-white text-lg font-semibold mb-1">
           PULSEDOM SIMULATOR BETA
           <div className="text-right mb-2">
-          <button
-            className={`px-4 py-1 rounded ${isBeepOn ? 'bg-red-600' : 'bg-gray-700'} hover:bg-green-600 text-white`}
-            onClick={handleBeepToggle}
-          >
-            {isBeepOn ? '同期音 停止' : '同期音 開始'}
-          </button>
-        </div>
+            <button
+              className={`px-4 py-1 rounded ${isBeepOn ? 'bg-red-600' : 'bg-gray-700'} hover:bg-green-600 text-white`}
+              onClick={handleBeepToggle}
+            >
+              {isBeepOn ? '同期音 停止' : '同期音 開始'}
+            </button>
+          </div>
         </div>
         <div className="col-span-2 md:col-span-4 lg:col-span-4 order-1 lg:order-1">
-          <ECGCanvas hr={hr} bufferRef={{ current: waveBuffersRef.current['ecg'] }} />
+          <p className="text-red-500">
+            {engine ? '✔ ECGCanvas マウントするよ！' : '❌ engine = null'}
+          </p>
+          <ECGCanvas_Oscilloscope latestValueRef={latestValueRef} />
         </div>
         <div className="col-span-1 md:col-span-1 lg:col-span-1 order-3 lg:order-2">
           <div className="flex items-center space-x-2 mb-1">
@@ -133,7 +122,7 @@ function App() {
           <VitalDisplay param={HR_PARAM} value={hr} setValue={handleHrChange} />
         </div>
         <div className="col-span-2 md:col-span-4 lg:col-span-4 order-2 lg:order-3">
-          <SPO2Canvas hr={hr} bufferRef={{ current: waveBuffersRef.current['spo2'] }} />
+          <SPO2Canvas hr={hr} bufferRef={{ current: { getArray: () => [] } }} />
         </div>
         <div className="col-span-1 md:col-span-1 lg:col-span-1 order-4 lg:order-4">
           <div className="flex items-center space-x-2 mb-1">
@@ -149,13 +138,13 @@ function App() {
             <span className="text-orange-500 text-lg">NIBP</span>
           </div>
           <div className="flex items-baseline space-x-2 w-full justify-between bg-black rounded-2xl">
-  <VitalDisplay param={NIBP_SYS_PARAM} value={sysBp} setValue={handleSysBpChange} />
-  <span className="text-orange-600 text-4xl font-bold">/</span>
-  <VitalDisplay param={NIBP_DIA_PARAM} value={diaBp} setValue={handleDiaBpChange} />
-  <div className="hidden md:block text-orange-600 text-xl font-mono font-bold text-right">
-    ({Math.round(sysBp / 3 + (diaBp * 2) / 3)})
-  </div>
-</div>
+            <VitalDisplay param={NIBP_SYS_PARAM} value={sysBp} setValue={handleSysBpChange} />
+            <span className="text-orange-600 text-4xl font-bold">/</span>
+            <VitalDisplay param={NIBP_DIA_PARAM} value={diaBp} setValue={handleDiaBpChange} />
+            <div className="hidden md:block text-orange-600 text-xl font-mono font-bold text-right">
+              ({Math.round(sysBp / 3 + (diaBp * 2) / 3)})
+            </div>
+          </div>
         </div>
       </div>
     </div>

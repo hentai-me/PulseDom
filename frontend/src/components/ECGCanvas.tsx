@@ -36,6 +36,9 @@ const ECGCanvas: React.FC<ECGCanvasProps> = ({ hr, bufferRef }) => {
     const gain = size.height * 0.4;
     const stepMs = 20;
 
+    const tNow = performance.now() / 1000;
+    console.log(`[Canvas] drawing at t=${tNow.toFixed(3)}`);
+    
     let animationId: number;
     let lastDrawTime = performance.now();
 
@@ -47,17 +50,23 @@ const ECGCanvas: React.FC<ECGCanvasProps> = ({ hr, bufferRef }) => {
         const wave = bufferRef.current?.getArray() ?? [];
         const latestwave = wave.slice(-size.width);
 
+        // ⚠️ nullチェック：すべて null なら描画しない
+        if (latestwave.every(v => v === null)) return;
+
+        // 描画処理
         ctx.clearRect(0, 0, size.width, size.height);
         ctx.beginPath();
         ctx.strokeStyle = 'lime';
         ctx.lineWidth = 1;
 
         for (let x = 0; x < latestwave.length; x++) {
-          const y = baseline - latestwave[x] * gain;
+          const val = latestwave[x];
+          if (val === null) continue; // nullはスキップ
+          const y = baseline - val * gain;
           x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
         }
         ctx.stroke();
-      }
+        }
       animationId = requestAnimationFrame(draw);
     };
 

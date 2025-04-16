@@ -82,7 +82,7 @@ export interface AlarmLimits {
     min: 5,
     max: 250,
     decimals: 0,
-    sensitivity: 1, // 👈
+    sensitivity: 2, // 👈
     color: 'text-green-500',
 
     alarm: {
@@ -99,13 +99,13 @@ export interface AlarmLimits {
     min: 0,
     max: 100,
     decimals: 0,
-    sensitivity: 1, // 👈
+    sensitivity: 10, // 👈
     color: 'text-cyan-400',
 
     alarm: {
-      warnLow: 90,
+      warnLow: 89,
       warnHigh: 110,
-      critLow: 80,
+      critLow: 79,
       critHigh: 120,
     },
   });
@@ -115,7 +115,7 @@ export interface AlarmLimits {
     min: 30,
     max: 250,
     decimals: 0,
-    sensitivity: 1,
+    sensitivity: 5,
     alarm: {
       warnLow: 80,
       warnHigh: 140,
@@ -131,11 +131,11 @@ export interface AlarmLimits {
     min: 20,
     max: 250,
     decimals: 0,
-    sensitivity: 1,
+    sensitivity: 5,
     alarm: {
-      warnLow: 60,
+      warnLow: 40,
       warnHigh: 250,
-      critLow: 40,
+      critLow: 20,
       critHigh: 250,
     },
     color: 'text-orange-600', // ← ★これ追加（型にないので要拡張）
