@@ -51,7 +51,7 @@ const SPO2Canvas: React.FC<SPO2CanvasProps> = ({ hr, bufferRef }) => {
         lastDrawTime = time;
 
         // 🎨 通常の描画処理
-        const wave = bufferRef.current?.getArray() ?? [];
+        const wave = bufferRef.current.spo2?.getArray() ?? [];
         const start = Math.max(0, wave.length - size.width - DELAY);
         const end = wave.length - DELAY;
         const latestwave = wave.slice(start, end);

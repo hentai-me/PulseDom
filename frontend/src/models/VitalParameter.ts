@@ -50,7 +50,10 @@ export interface AlarmLimits {
       return Math.min(this.max, Math.max(this.min, value));
     }
   
-    format(value: number): string {
+    format(value: unknown): string {
+      if (typeof value !== 'number' || !isFinite(value) || value < 0) {
+        return '--'; // 未決定や不正値は "--" にする（明示的）
+      }
       return value.toFixed(this.decimals);
     }
   

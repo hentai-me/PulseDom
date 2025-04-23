@@ -2,11 +2,13 @@ import { SimOptions } from './SimOptions';
 
 export function createDefaultSimOptions(): SimOptions {
   return {
-    hr: 60,
+    hr: 80,
+    rr: 750, // 直前の1拍周期（ms）
+
     spo2: 98,
 
     sinus: {
-      rate: 60,
+      rate: 80,
       status: 'normal',
       options: [],
     },
@@ -33,17 +35,22 @@ export function createDefaultSimOptions(): SimOptions {
     },
 
     waveform: {
-      mgnfy: 1.0,
-      Pheight: 0.1,
-      Pwidth: 0.08,
-      Qdepth: -0.1,
-      Rheight: 1.0,
-      Sdepth: -0.15,
-      Swidth: 0.08,
-      Theight: 0.3,
-      Twidth: 0.16,
-      QRSwidth: 0.1,
+      mgnfy: 0.9,
       baseline: 0.0,
+
+      // amplitude
+      Pvoltage: 0.12,
+      Qvoltage: -0.2,
+      Rvoltage: 1.0,
+      Svoltage: -0.2,
+      Tvoltage: 0.3,
+      STheight: 0.0,
+
+      // duration
+      Pduration: 0.1,
+      QRSduration: 0.12,
+      Tduration: 0.15,
     },
   };
 }
+export default createDefaultSimOptions;

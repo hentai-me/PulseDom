@@ -1,16 +1,16 @@
+// src/components/ECGCanvas.tsx
 import React, { useEffect, useRef, useState } from 'react';
+import { PX_SCALE } from '../constants';
 
 interface ECGCanvasProps {
-  hr: number;
-  bufferRef: React.MutableRefObject<{ getArray: () => number[] } | null>;
+  bufferRef: React.MutableRefObject<{ getArray: () => number[]; size: () => number }>;
 }
 
-const ECGCanvas: React.FC<ECGCanvasProps> = ({ hr, bufferRef }) => {
+const ECGCanvas_Debug: React.FC<ECGCanvasProps> = ({ bufferRef }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
 
-  // ResizeObserverでサイズ監視
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -28,57 +28,42 @@ const ECGCanvas: React.FC<ECGCanvasProps> = ({ hr, bufferRef }) => {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !bufferRef.current) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx || size.width === 0 || size.height === 0) return;
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !ctx || size.width === 0 || size.height === 0) return;
 
-    const baseline = size.height *2 / 3;
-    const gain = size.height * 0.4;
-    const stepMs = 20;
+    const draw = () => {
+      const canvas = canvasRef.current;
+      const ctx = canvas?.getContext('2d');
+      if (!canvas || !ctx) return;
 
-    const tNow = performance.now() / 1000;
-    console.log(`[Canvas] drawing at t=${tNow.toFixed(3)}`);
-    
-    let animationId: number;
-    let lastDrawTime = performance.now();
+      const buffer = bufferRef.current.ecg.getArray();
+      const visibleSec = size.width / PX_SCALE.pxPerSec;
+      const visibleSamples = Math.floor(visibleSec * 1000 / 5); // STEP_MS = 5ms
+      const wave = buffer.slice(-visibleSamples);
 
-    const draw = (time: number) => {
-      const delta = time - lastDrawTime;
-      if (delta >= stepMs) {
-        lastDrawTime = time;
+      const baseline = size.height * 2 / 3;
+      const gain = PX_SCALE.pxPerMv;
 
-        const wave = bufferRef.current?.getArray() ?? [];
-        const latestwave = wave.slice(-size.width);
+      ctx.clearRect(0, 0, size.width, size.height);
+      ctx.beginPath();
+      ctx.strokeStyle = 'lime';
 
-        // ⚠️ nullチェック：すべて null なら描画しない
-        if (latestwave.every(v => v === null)) return;
+      for (let i = 0; i < wave.length; i++) {
+        const timeOffsetSec = (wave.length - i) * 5 / 1000; // STEP_MS = 5
+        const x = size.width - timeOffsetSec * PX_SCALE.pxPerSec;
+        const y = baseline - wave[i] * gain;
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
 
-        // 描画処理
-        ctx.clearRect(0, 0, size.width, size.height);
-        ctx.beginPath();
-        ctx.strokeStyle = 'lime';
-        ctx.lineWidth = 1;
-
-        for (let x = 0; x < latestwave.length; x++) {
-          const val = latestwave[x];
-          if (val === null) continue; // nullはスキップ
-          const y = baseline - val * gain;
-          x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-        }
-        ctx.stroke();
-        }
-      animationId = requestAnimationFrame(draw);
+      ctx.stroke();
+      requestAnimationFrame(draw);
     };
 
-    animationId = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(animationId);
-  }, [bufferRef, hr, size]);
+    requestAnimationFrame(draw);
+  }, [size]);
 
   return (
-    <div
-      ref={containerRef}
-      className="w-full h-[100px] sm:h-[120px] md:h-[140px] lg:h-[160px]" // ← 高さもレスポンシブ
-    >
+    <div ref={containerRef} className="w-full h-[100px] sm:h-[120px] md:h-[140px] lg:h-[160px]">
       <canvas
         ref={canvasRef}
         width={size.width}
@@ -89,4 +74,4 @@ const ECGCanvas: React.FC<ECGCanvasProps> = ({ hr, bufferRef }) => {
   );
 };
 
-export default ECGCanvas;
+export default ECGCanvas_Debug;

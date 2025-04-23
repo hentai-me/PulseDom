@@ -1,42 +1,38 @@
-// engine/waveforms/generatePulseWave.ts
+//src/engine/waveforms/generatePulseWave.ts
+//     const pulseWave = generatePulseWave(this.simOptions);
 
-import { ECG_CONFIG } from '../../constants';
 import { SimOptions } from '../../types/SimOptions';
 
-export function generatePulseWave(simOptions: SimOptions): number[] {
+export function generatePulseWaveFn(simOptions: SimOptions): (t: number) => number {
   const { hr, waveform } = simOptions;
-  const samplingRate = ECG_CONFIG.samplingRate;
-  const beatMs = 60000 / hr;
-  const totalSamples = Math.round((beatMs / 1000) * samplingRate);
 
+  const beatSec = 60 / hr;
   const peakRatio = 0.25;
   const systolicEndRatio = 0.45;
 
-  const peakPoint = Math.round(totalSamples * peakRatio);
-  const systolicEnd = Math.round(totalSamples * systolicEndRatio);
-  const decaySamples = totalSamples - systolicEnd;
-  const tau = decaySamples / 4;
+  const peakT = beatSec * peakRatio;
+  const systolicEndT = beatSec * systolicEndRatio;
+  const decayDuration = beatSec - systolicEndT;
+  const tau = decayDuration / 4;
 
-  const a = 1 / (peakPoint ** 2);
-  const systolicEndValue = -a * (systolicEnd - peakPoint) ** 2 + 1;
+  const a = 1 / (peakT ** 2);
+  const systolicEndValue = -a * (systolicEndT - peakT) ** 2 + 1;
 
   const mgnfy = waveform?.mgnfy ?? 1;
   const baseline = waveform?.baseline ?? 0;
 
-  const waveformArray: number[] = [];
+  return function (t: number): number {
+    if (t < 0 || t >= beatSec) return 0;
 
-  for (let i = 0; i < totalSamples; i++) {
     let value = 0;
 
-    if (i <= systolicEnd) {
-      value = -a * (i - peakPoint) ** 2 + 1;
+    if (t <= systolicEndT) {
+      value = -a * (t - peakT) ** 2 + 1;
     } else {
-      const x = i - systolicEnd;
+      const x = t - systolicEndT;
       value = systolicEndValue * Math.exp(-x / tau);
     }
 
-    waveformArray.push(Math.max(0, value * mgnfy + baseline));
-  }
-
-  return waveformArray;
+    return Math.max(0, value * mgnfy + baseline);
+  };
 }

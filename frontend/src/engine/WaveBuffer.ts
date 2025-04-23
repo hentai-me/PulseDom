@@ -1,27 +1,26 @@
 // src/engine/WaveBuffer.ts
-
 export class WaveBuffer {
-  private buffer: number[];
-  private writeIndex: number = 0;
-
-  constructor({ size }: { size: number }) {
-    this.buffer = new Array(size).fill(0);
+    private buffer: number[];
+    private sizeLimit: number;
+  
+    constructor({ size = 2000 }: { size: number }) {
+      this.buffer = [];
+      this.sizeLimit = size;
+    }
+  
+    push(val: number) {
+      this.buffer.push(val);
+      if (this.buffer.length > this.sizeLimit) {
+        this.buffer.shift();
+      }
+    }
+  
+    getArray() {
+      return this.buffer;
+    }
+  
+    size() {
+      return this.buffer.length;
+    }
   }
-
-  push(val: number) {
-    this.buffer[this.writeIndex] = val;
-    this.writeIndex = (this.writeIndex + 1) % this.buffer.length;
-  }
-
-  getArray(): number[] {
-    return this.buffer.slice(this.writeIndex).concat(this.buffer.slice(0, this.writeIndex));
-  }
-
-  getWriteIndex(): number {
-    return this.writeIndex;
-  }
-
-  getBuffer(): number[] {
-    return this.buffer;
-  }
-} 
+  

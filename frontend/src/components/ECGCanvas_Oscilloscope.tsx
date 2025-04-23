@@ -1,73 +1,83 @@
-// src/components/ECGCanvas_Oscilloscope.tsx
-import React, { useEffect, useRef } from 'react';
-import { ECG_CONFIG } from '../constants';
+// src/components/ECGCanvas_Debug.tsx
+import React, { useEffect, useRef, useState } from 'react';
+import { PX_SCALE } from '../constants';
 
-interface Props {
-  latestValueRef: React.MutableRefObject<{ ecg?: number }>;
+interface ECGCanvasProps {
+  bufferRef: React.MutableRefObject<{ getArray: () => number[]; size: () => number }>;
 }
 
-const ECGCanvas_Oscilloscope: React.FC<Props> = ({ latestValueRef }) => {
+const ECGCanvas_Debug: React.FC<ECGCanvasProps> = ({ bufferRef }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const startTimeRef = useRef<number>(performance.now());
-  const prevXRef = useRef<number | null>(null);
-  const prevYRef = useRef<number | null>(null);
+  const [size, setSize] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
-    console.log('[ECGCanvas] useEffect called');
+    const container = containerRef.current;
+    if (!container) return;
+
+    const observer = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        setSize({ width, height });
+        console.log(`📐 ResizeObserver: width=${width}, height=${height}`);
+      }
+    });
+
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
-    if (!canvas || !container) return;
+    const ctx = canvas?.getContext('2d');
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const width = container.clientWidth;
-    const height = container.clientHeight;
-    canvas.width = width;
-    canvas.height = height;
-
-    const baseline = height * 2 / 3;
-    const gain = height * 0.4;
-    const pxPerSec = 200; // ← 時間基準の描画速度 (200px/sec)
+    if (!canvas || !ctx || size.width === 0 || size.height === 0) {
+      console.warn('🚫 draw skipped: missing ctx or size 0');
+      return;
+    }
 
     const draw = () => {
-      const now = performance.now();
-      const elapsedSec = (now - startTimeRef.current) / 1000;
-      const x = Math.floor(elapsedSec * pxPerSec) % width;
-      const val = latestValueRef.current.ecg ?? 0;
-      const y = baseline - val * gain;
+      const canvas = canvasRef.current;
+      const ctx = canvas?.getContext('2d');
+      if (!canvas || !ctx || size.width === 0 || size.height === 0) return;
 
-      // 消すライン
-      ctx.clearRect(x, 0, 1, height);
+      const buffer = bufferRef.current.ecg.getArray();
+      const wave = buffer.slice(-size.width);
+      const baseline = size.height * 2 / 3;
+      const gain = PX_SCALE.pxPerMv; // ← 1mV = 40px の固定スケーリング
 
-      // 線を描く
+      ctx.clearRect(0, 0, size.width, size.height);
       ctx.beginPath();
       ctx.strokeStyle = 'lime';
-      if (prevXRef.current !== null && prevYRef.current !== null) {
-        ctx.moveTo(prevXRef.current, prevYRef.current);
-        ctx.lineTo(x, y);
-      } else {
-        ctx.moveTo(x, y);
-        ctx.lineTo(x, y);
+
+      const len = wave.length;
+      for (let i = 0; i < len; i++) {
+        const x = size.width - len + i; // 右端を現在時刻として描画
+        const y = baseline - wave[i] * gain;
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
       }
       ctx.stroke();
 
-      prevXRef.current = x;
-      prevYRef.current = y;
-
       requestAnimationFrame(draw);
     };
-
     requestAnimationFrame(draw);
-  }, [latestValueRef]);
+    console.log('🧩 Canvas mounted');
+  }, [size]);
 
   return (
-    <div ref={containerRef} className="bg-red-500 text-white p-2">
-      <p>ここにいます！（Canvasデバッグ中）</p>
-      <canvas ref={canvasRef} className="bg-black w-full h-[100px]" />
+    <div
+      ref={containerRef}
+      className="w-full h-[100px] sm:h-[120px] md:h-[140px] lg:h-[160px]"
+    >
+      <canvas
+        ref={canvasRef}
+        width={size.width}
+        height={size.height}
+        className="bg-black rounded-2xl"
+      />
     </div>
   );
 };
 
-export default ECGCanvas_Oscilloscope;
+export default ECGCanvas_Debug;

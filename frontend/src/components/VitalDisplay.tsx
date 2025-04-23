@@ -43,24 +43,33 @@ const VitalDisplay: React.FC<VitalDisplayProps> = ({ param, value, setValue }) =
   };
 
   // バックグラウンド色の判定（警告・危険・正常で色が変わる）
-  const getBgColor = (): string => {
-    if (param.isCritical(localVal)) return 'bg-red-700';   // 危険域
-    if (param.isWarning(localVal)) return 'bg-yellow-500'; // 警告域
-    return 'bg-black';                                     // 正常域
+  const getBgColorClass = (): string => {
+    if (param.isCritical(value)) return 'bg-red-500';
+    if (param.isWarning(value)) return 'bg-yellow-500';
+    return 'bg-black';
   };
 
-  // テキストカラー（固定）
+  // テキストカラー
   const getTextColor = (): string => {
+    if (param.isCritical(localVal) || param.isWarning(localVal)) {
+      return 'text-black'; // アラーム時は黒字で視認性UP
+    }
     return param.color;
   };
 
+  const getPulseClass = (): string => {
+    if (param.isCritical(localVal) || param.isWarning(localVal)) {
+      return 'animate-pulse'; // Tailwind標準の点滅（今後カスタム可）
+    }
+    return '';
+  };
   return (
     <div
-      className={`select-none cursor-ns-resize rounded-2xl p-4 shadow-xl hover:scale-105 transition duration-150 ease-out ${getBgColor()}`}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerLeave={handlePointerUp}
+      className={`select-none cursor-ns-resize rounded-2xl p-4 shadow-xl hover:scale-105 transition duration-150 ease-out  ${getBgColorClass()} ${getTextColor()}`}
+//      onPointerDown={handlePointerDown}
+//      onPointerMove={handlePointerMove}
+//      onPointerUp={handlePointerUp}
+//      onPointerLeave={handlePointerUp}
     >
       <span className={`text-6xl font-bold font-mono text-right block ${getTextColor()}`}>
         {param.format(localVal)} {/* 小数点表示などに対応したフォーマット */}
